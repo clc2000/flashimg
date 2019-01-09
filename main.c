@@ -46,7 +46,7 @@ struct ecc_info {
 	int page_size;
 	int oob_size;
 	int ecc_nb;
-	int ecc_pos[24];
+	int ecc_pos[48];
 };
 
 struct ecc_info const ecc_tab[] = {
@@ -73,6 +73,19 @@ struct ecc_info const ecc_tab[] = {
 		48, 49, 50, 51, 52, 53, 54, 55,
 		56, 57, 58, 59, 60, 61, 62, 63 },
 	},
+
+	{
+	.page_size = 2048,
+	.oob_size = 128,
+	.ecc_nb = 48,
+	.ecc_pos = {
+		80, 81, 82, 83, 84, 85, 86, 87,
+		88, 89, 90, 91, 92, 93, 94, 95,
+		96, 97, 98, 99, 100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127 },
+	},
 };
 
 
@@ -94,7 +107,7 @@ void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 static void oob(const unsigned char *buf, size_t len, unsigned char *check)
 {
 	int i;
-	unsigned char code[32], *_code;
+	unsigned char code[64], *_code;
 
 	memset(check, 0xff, 16);
 
@@ -210,7 +223,7 @@ static void partition_read(struct image *img, const char *part_name, const char 
 static void partition_write(struct image *img, const char *part_name, const char *filename)
 {
 	unsigned char *buf;
-	unsigned char oob_buf[64];
+	unsigned char oob_buf[128];
 	int i, nb_page, ret, pages;
 	FILE *fp;
 	unsigned long off;
@@ -317,6 +330,8 @@ int main(int argc, char *argv[])
 	struct action act_tab[32];
 	int nb_act;
 	int err = 0;
+	int oob_size = -1;
+	char * oob_str = 0;
 
 	nb_act = 0;
 	img.size = 0;
@@ -373,9 +388,15 @@ int main(int argc, char *argv[])
 				break;
 			case 'z':
 				page_size = atoi(optarg);
-				for(i=0;i<3;i++) {
-					if (ecc_tab[i].page_size == page_size) {
+				oob_str = getenv("nand_oob_size");
+				if(oob_str)
+				{
+					oob_size = atoi(oob_str);
+				}
+				for(i=0;i<4;i++) {
+					if ((ecc_tab[i].page_size == page_size) && (oob_size==-1 || oob_size==ecc_tab[i].oob_size)) {
 						ecc = &ecc_tab[i];
+						fprintf(stdout, "ecc page_size=%d oob_size=%d\n", ecc_tab[i].page_size, ecc_tab[i].oob_size);
 						break;
 					}
 				}
@@ -446,6 +467,7 @@ int main(int argc, char *argv[])
 	close(fd_img);
 
 	free(filename);
+	free(img.mem);
 
 	return EXIT_SUCCESS;
 }
